@@ -2,6 +2,18 @@
 
 Қазақстанға бағытталған AI travel guide қолданбасының native Android MVP нұсқасы.
 
+## Скриншот
+
+<img src="docs/screenshots/discover-screen.png" alt="Snapar Discover screen" width="320" />
+
+## Жүктемей-ақ тексеру (браузерде ашу)
+
+APK-ны телефонға орнатпай-ақ, [Appetize.io](https://appetize.io) арқылы қосымшаны браузерде ашып, тікелей саусақпен басып көруге болады:
+
+1. [Appetize.io](https://appetize.io/upload) сайтына GitHub аккаунтыңызбен кіріңіз (тіркеу ~30 секунд, тегін)
+2. "Upload" батырмасын басып, [Release APK](../../releases/download/v0.3.0-debug/Snapar-debug.apk) файлын жүктеңіз (алдымен компьютерге сақтап алыңыз, содан кейін Appetize-ке жүктеңіз)
+3. Пайда болған сілтемені ашсаңыз болды — қосымша браузерде виртуалды телефонда іске қосылады, орнатудың қажеті жоқ
+
 ## Технология
 
 - Kotlin
