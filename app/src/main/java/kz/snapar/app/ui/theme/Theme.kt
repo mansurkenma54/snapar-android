@@ -1,6 +1,7 @@
 package kz.snapar.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -39,50 +40,75 @@ private val colors = lightColorScheme(
     outline = Color(0xFF6C7A79),
 )
 
-private val typography = androidx.compose.material3.Typography(
+private val darkColors = darkColorScheme(
+    primary = SnaparTurquoise,
+    onPrimary = Color(0xFF003735),
+    primaryContainer = SnaparPrimary,
+    onPrimaryContainer = Color.White,
+    secondary = Color(0xFF9FCBFF),
+    onSecondary = Color(0xFF063257),
+    tertiary = SnaparGold,
+    background = SnaparDark,
+    onBackground = Color(0xFFE6F0EF),
+    surface = Color(0xFF132536),
+    onSurface = Color(0xFFE6F0EF),
+    surfaceVariant = Color(0xFF283A49),
+    onSurfaceVariant = Color(0xFFC0CFCD),
+    outline = Color(0xFF899896),
+)
+
+private fun typography(scale: Float) = androidx.compose.material3.Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        lineHeight = 38.sp,
+        fontSize = (32 * scale).sp,
+        lineHeight = (38 * scale).sp,
     ),
     headlineMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 27.sp,
+        fontSize = (20 * scale).sp,
+        lineHeight = (27 * scale).sp,
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 23.sp,
-        lineHeight = 29.sp,
+        fontSize = (23 * scale).sp,
+        lineHeight = (29 * scale).sp,
     ),
     titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
-        lineHeight = 22.sp,
+        fontSize = (16 * scale).sp,
+        lineHeight = (22 * scale).sp,
     ),
     bodyLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
+        fontSize = (16 * scale).sp,
+        lineHeight = (24 * scale).sp,
     ),
     bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
-        fontSize = 14.sp,
-        lineHeight = 21.sp,
+        fontSize = (14 * scale).sp,
+        lineHeight = (21 * scale).sp,
     ),
     labelMedium = TextStyle(
         fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
+        fontSize = (12 * scale).sp,
         letterSpacing = 0.35.sp,
     ),
 )
 
 @Composable
-fun SnaparTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = colors, typography = typography, content = content)
+fun SnaparTheme(
+    darkTheme: Boolean,
+    largeText: Boolean,
+    content: @Composable () -> Unit,
+) {
+    MaterialTheme(
+        colorScheme = if (darkTheme) darkColors else colors,
+        typography = typography(if (largeText) 1.13f else 1f),
+        content = content,
+    )
 }

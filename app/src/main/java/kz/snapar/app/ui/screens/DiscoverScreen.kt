@@ -1,5 +1,10 @@
 package kz.snapar.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,10 +54,12 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kz.snapar.app.ui.components.pressScale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +101,7 @@ fun DiscoverScreen(
     val labels = strings(language)
     var query by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("all") }
+    var showAllNearby by remember { mutableStateOf(false) }
     val categories = listOf(
         "all" to local(language, "Барлығы", "Все", "All"),
         "mountain" to local(language, "Таулар", "Горы", "Mountains"),
@@ -118,12 +126,24 @@ fun DiscoverScreen(
         .sortedByDescending { if (it.id in state.likedIds) 1 else 0 }
     val posts = state.sessionPosts + SampleData.posts
 
+    LaunchedEffect(filtered.map { it.id }) {
+        filtered.take(4).forEach(state::loadWeather)
+    }
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 26.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         item {
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(380, easing = FastOutSlowInEasing)) +
+                    slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it / 5 },
+            ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("${labels.whereToday} ✨", style = MaterialTheme.typography.headlineMedium)
                 OutlinedTextField(
@@ -160,14 +180,21 @@ fun DiscoverScreen(
                     }
                 }
             }
+            } // AnimatedVisibility end
         }
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionTitle(labels.nearby, labels.seeAll)
+                SectionTitle(
+                    labels.nearby,
+                    if (showAllNearby) local(language, "Қысқарту", "Свернуть", "Show less") else labels.seeAll,
+                ) { showAllNearby = !showAllNearby }
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    items(filtered.take(4)) { place ->
-                        NearbyCard(place, language) { onPlace(place) }
+                    items(if (showAllNearby) filtered else filtered.take(4)) { place ->
+                        NearbyCard(
+                            place.copy(weather = state.liveWeather[place.id]?.current ?: place.weather),
+                            language,
+                        ) { onPlace(place) }
                     }
                 }
             }
@@ -175,7 +202,7 @@ fun DiscoverScreen(
 
         if (filtered.isEmpty()) {
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                     Text(
                         local(language, "Сұраныс бойынша орын табылмады.", "Места не найдены.", "No places found."),
                         modifier = Modifier.padding(20.dp),
@@ -187,7 +214,9 @@ fun DiscoverScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionTitle("${labels.trending} 🔥")
                     FeaturedCard(
-                        place = filtered.first(),
+                        place = filtered.first().copy(
+                            weather = state.liveWeather[filtered.first().id]?.current ?: filtered.first().weather,
+                        ),
                         language = language,
                         liked = filtered.first().id in state.likedIds,
                         saved = filtered.first().id in state.savedIds,
@@ -238,10 +267,12 @@ fun DiscoverScreen(
 private fun NearbyCard(place: Place, language: AppLanguage, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        modifier = Modifier.width(240.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = Modifier
+            .width(240.dp)
+            .pressScale(0.97f),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(3.dp),
     ) {
         Box {
             AsyncImage(
@@ -249,8 +280,20 @@ private fun NearbyCard(place: Place, language: AppLanguage, onClick: () -> Unit)
                 contentDescription = place.name.value(language),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(134.dp),
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
                 contentScale = ContentScale.Crop,
+            )
+            // Жарамды gradient overlay
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Transparent, Color(0x55000000)),
+                        ),
+                    ),
             )
             RatingBadge(
                 place.rating,
@@ -259,17 +302,27 @@ private fun NearbyCard(place: Place, language: AppLanguage, onClick: () -> Unit)
                     .padding(8.dp),
             )
         }
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 place.name.value(language),
-                fontWeight = FontWeight.SemiBold,
-                color = SnaparNavy,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                fontSize = 15.sp,
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Meta(Icons.Outlined.DirectionsCar, "${place.distanceKm} км")
                 Meta(Icons.Outlined.Cloud, "${place.weather.temperature}°C")
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Meta(Icons.Outlined.Map, formatMinutes(place.travelMinutes))
+                Text(
+                    formatTenge(place.averageCost),
+                    color = SnaparTurquoise,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                )
             }
         }
     }
@@ -323,6 +376,8 @@ private fun FeaturedCard(
                         Icon(Icons.Outlined.LocationOn, null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Text(place.region.value(language), color = Color.White, fontSize = 13.sp)
                         Spacer(Modifier.weight(1f))
+                        Text(formatMinutes(place.travelMinutes), color = Color.White, style = MaterialTheme.typography.labelMedium)
+                        Spacer(Modifier.width(9.dp))
                         Text(formatTenge(place.averageCost), color = Color.White, style = MaterialTheme.typography.labelMedium)
                     }
                 }
@@ -340,7 +395,7 @@ private fun FeaturedCard(
                 Spacer(Modifier.width(7.dp))
                 Column {
                     Text(labels.whyRecommended, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                    Text(place.recommendation.value(language), color = SnaparMuted, fontSize = 12.sp)
+                    Text(place.recommendation.value(language), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
             }
         }
@@ -360,9 +415,9 @@ private fun FeaturedCard(
                 Spacer(Modifier.width(4.dp))
                 Text(labels.interesting, maxLines = 1, fontSize = 11.sp)
             }
-            ActionIcon(if (saved) Icons.Rounded.Bookmark else Icons.Outlined.BookmarkBorder, onSave)
-            ActionIcon(Icons.Outlined.Map, onRoute)
-            ActionIcon(Icons.Rounded.Star, onSai, SnaparGold)
+            ActionIcon(if (saved) Icons.Rounded.Bookmark else Icons.Outlined.BookmarkBorder, labels.saved, onSave)
+            ActionIcon(Icons.Outlined.Map, labels.routes, onRoute)
+            ActionIcon(Icons.Rounded.Star, labels.sai, onSai, SnaparGold)
         }
     }
 }
@@ -372,20 +427,40 @@ private fun HiddenCard(place: Place, language: AppLanguage, onClick: () -> Unit)
     Box(
         Modifier
             .width(180.dp)
-            .height(190.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(200.dp)
+            .pressScale(0.96f)
+            .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick),
     ) {
         AsyncImage(place.image, place.name.value(language), Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xB0000000)))))
-        Text(
-            place.name.value(language),
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
+        // Deepper gradient for readability
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color(0x33000000), Color(0xCC000000)),
+                    ),
+                ),
+        )
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(12.dp),
-        )
+        ) {
+            Text(
+                place.name.value(language),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                maxLines = 2,
+            )
+            Text(
+                "${place.distanceKm} км",
+                color = Color.White.copy(.75f),
+                fontSize = 11.sp,
+            )
+        }
     }
 }
 
@@ -393,35 +468,65 @@ private fun HiddenCard(place: Place, language: AppLanguage, onClick: () -> Unit)
 private fun CommunityThumb(post: CommunityPost, modifier: Modifier, onClick: () -> Unit) {
     Box(
         modifier
-            .height(156.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .height(165.dp)
+            .pressScale(0.97f)
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick),
     ) {
         AsyncImage(post.image, post.user, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x99000000)))))
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Color(0x44000000), Color(0xBB000000)),
+                    ),
+                ),
+        )
         Row(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(8.dp),
+                .padding(horizontal = 9.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("@${post.user}", color = Color.White, fontSize = 10.sp)
-            Text("♡ ${compactNumber(post.likes)}", color = Color.White, fontSize = 10.sp)
+            Text("@${post.user}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+            Surface(
+                color = Color.White.copy(.18f),
+                shape = RoundedCornerShape(6.dp),
+            ) {
+                Text(
+                    "♡ ${compactNumber(post.likes)}",
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, tint: Color = SnaparNavy) {
+private fun ActionIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    onClick: () -> Unit,
+    tint: Color = SnaparNavy,
+) {
     IconButton(
         onClick = onClick,
         modifier = Modifier
             .size(44.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFE8EFEE)),
+            .pressScale(0.92f)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFFEBF2F1), Color(0xFFE0ECEB)),
+                ),
+            ),
     ) {
-        Icon(icon, null, tint = tint)
+        Icon(icon, description, tint = tint, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -429,13 +534,18 @@ private fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, on
 private fun RatingBadge(rating: Double, modifier: Modifier) {
     Row(
         modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.Black.copy(alpha = 0.62f))
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xDD000000), Color(0xAA001018)),
+                ),
+            )
             .padding(horizontal = 8.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Icon(Icons.Rounded.Star, null, tint = SnaparGold, modifier = Modifier.size(14.dp))
-        Text(rating.toString(), color = Color.White, fontSize = 12.sp)
+        Icon(Icons.Rounded.Star, null, tint = SnaparGold, modifier = Modifier.size(13.dp))
+        Text(rating.toString(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -443,23 +553,23 @@ private fun RatingBadge(rating: Double, modifier: Modifier) {
 private fun GlassBadge(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(
         Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color.White.copy(alpha = 0.86f))
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.82f))
             .padding(horizontal = 10.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Icon(icon, null, tint = SnaparPrimary, modifier = Modifier.size(16.dp))
-        Text(text, color = SnaparNavy, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Icon(icon, null, tint = SnaparPrimary, modifier = Modifier.size(15.dp))
+        Text(text, color = SnaparNavy, fontWeight = FontWeight.Bold, fontSize = 13.sp)
     }
 }
 
 @Composable
 private fun Meta(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = SnaparMuted, modifier = Modifier.size(14.dp))
+        Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
-        Text(text, color = SnaparMuted, fontSize = 12.sp)
+        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
     }
 }
 

@@ -12,11 +12,13 @@ android {
         applicationId = "kz.snapar.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+        val saiBackendUrl = providers.gradleProperty("SNAPAR_SAI_BACKEND_URL").orElse("").get()
+        buildConfigField("String", "SAI_BACKEND_URL", "\"${saiBackendUrl.replace("\"", "\\\"")}\"")
     }
 
     buildTypes {
@@ -40,6 +42,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

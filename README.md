@@ -19,6 +19,7 @@
 - Passport: XP, Қазақстан картасы, статистика және жетістіктер
 - Profile: статистика, тіл/хабарлама баптаулары, бизнес режим
 - SAI: интерактивті демо чат және жылдам сұраулар
+- Live Weather: Open-Meteo арқылы нақты уақыттағы ауа райы және 7 күндік болжам
 
 ## Іске қосу
 
@@ -39,3 +40,23 @@ Debug APK:
 ```text
 artifacts\Snapar-debug.apk
 ```
+
+Телефон USB debugging арқылы қосылғанда:
+
+```powershell
+C:\Users\Lenovo\AppData\Local\Android\Sdk\platform-tools\adb.exe install -r artifacts\Snapar-debug.apk
+```
+
+Толық өнімдік жоспар: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)
+
+## Cloud SAI қосу
+
+Қосымша API кілтін APK ішіне сақтамайды. Нақты LLM қолдану үшін кілт серверде тұруы керек,
+ал Android тек қауіпсіз HTTPS endpoint-ке сұраныс жібереді:
+
+```powershell
+.\gradlew.bat :app:assembleDebug -PSNAPAR_SAI_BACKEND_URL=https://example.com/api/sai
+```
+
+Endpoint `POST {"message":"...","language":"kk","app":"Snapar"}` қабылдап,
+`{"reply":"..."}` қайтарады. URL берілмесе, SAI толық офлайн жоспарлаушымен жұмыс істейді.

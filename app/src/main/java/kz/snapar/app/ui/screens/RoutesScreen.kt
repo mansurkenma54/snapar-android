@@ -81,16 +81,20 @@ fun RoutesScreen(
     val filters = listOf(
         "all" to localRoute(language, "Барлығы", "Все", "All"),
         "budget" to localRoute(language, "Баға", "Цена", "Price"),
+        "trust" to "Trust",
         "rating" to localRoute(language, "Рейтинг", "Рейтинг", "Rating"),
         "near" to localRoute(language, "Қашықтық", "Расстояние", "Distance"),
+        "360" to "360°",
     )
     val visibleRoutes = routes
         .filter { query.isBlank() || it.title.value(language).contains(query, true) }
         .let {
             when (filter) {
                 "budget" -> it.sortedBy(TravelRoute::price)
+                "trust" -> it.sortedByDescending(TravelRoute::trust)
                 "rating" -> it.sortedByDescending(TravelRoute::rating)
                 "near" -> it.sortedBy(TravelRoute::distanceKm)
+                "360" -> it.filter { route -> route.id == 101 || route.interests.contains("photo") }
                 else -> it
             }
         }
@@ -143,8 +147,17 @@ fun RoutesScreen(
                         }
                     }
                 }
-                MapMarker("Көлсай", Modifier.align(Alignment.Center).padding(top = 30.dp))
-                MapMarker("Шарын", Modifier.align(Alignment.BottomEnd).padding(end = 58.dp, bottom = 38.dp), SnaparGold)
+                MapMarker(
+                    "Көлсай",
+                    Modifier.align(Alignment.Center).padding(top = 30.dp),
+                    onClick = { routes.firstOrNull()?.let(onRoute) },
+                )
+                MapMarker(
+                    "Шарын",
+                    Modifier.align(Alignment.BottomEnd).padding(end = 58.dp, bottom = 38.dp),
+                    SnaparGold,
+                    onClick = { routes.firstOrNull { it.id == 102 }?.let(onRoute) },
+                )
                 Button(
                     onClick = onBuild,
                     modifier = Modifier
@@ -174,7 +187,7 @@ fun RoutesScreen(
             item {
                 Card(
                     Modifier.padding(horizontal = 18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Text(
                         localRoute(language, "Маршрут табылмады", "Маршруты не найдены", "No routes found"),
@@ -187,8 +200,13 @@ fun RoutesScreen(
 }
 
 @Composable
-private fun MapMarker(label: String, modifier: Modifier, color: Color = SnaparPrimary) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+private fun MapMarker(
+    label: String,
+    modifier: Modifier,
+    color: Color = SnaparPrimary,
+    onClick: () -> Unit = {},
+) {
+    Column(modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
                 .size(54.dp)
@@ -214,7 +232,7 @@ private fun RouteCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(2.dp),
     ) {
@@ -235,7 +253,7 @@ private fun RouteCard(
                 Text(
                     "${route.trust}% Trust",
                     Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                    color = SnaparNavy,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -267,12 +285,12 @@ private fun RouteCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("${route.days} ${localRoute(language, "күн", "дн.", "days")}", color = SnaparMuted, fontSize = 12.sp)
+                Text("${route.days} ${localRoute(language, "күн", "дн.", "days")}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Star, null, tint = SnaparGold, modifier = Modifier.size(15.dp))
-                    Text(route.rating.toString(), color = SnaparMuted, fontSize = 12.sp)
+                    Text(route.rating.toString(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
-                Text("${route.distanceKm} км", color = SnaparMuted, fontSize = 12.sp)
+                Text("${route.distanceKm} км", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
             Text(formatTenge(route.price), color = SnaparPrimary, fontWeight = FontWeight.Bold)
         }

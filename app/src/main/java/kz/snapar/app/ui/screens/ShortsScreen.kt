@@ -1,5 +1,7 @@
 package kz.snapar.app.ui.screens
 
+import android.content.Intent
+import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,31 +30,40 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kz.snapar.app.model.AppLanguage
 import kz.snapar.app.model.CommunityPost
+import kz.snapar.app.ui.SnaparState
 import kz.snapar.app.ui.theme.SnaparTurquoise
+import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
 fun ShortsScreen(
     initialPost: CommunityPost,
     posts: List<CommunityPost>,
     language: AppLanguage,
+    state: SnaparState,
     onBack: () -> Unit,
     onPlace: () -> Unit,
     onSai: () -> Unit,
@@ -61,7 +72,9 @@ fun ShortsScreen(
         listOf(initialPost) + posts.filterNot { it.id == initialPost.id }
     }
     val pager = rememberPagerState(pageCount = { ordered.size })
-    val liked = remember { mutableStateMapOf<String, Boolean>() }
+    val context = LocalContext.current
+    var commentPost by remember { mutableStateOf<CommunityPost?>(null) }
+    var commentText by remember { mutableStateOf("") }
 
     Box(
         Modifier
@@ -71,7 +84,7 @@ fun ShortsScreen(
         VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { index ->
             val post = ordered[index]
             Box(Modifier.fillMaxSize()) {
-                AsyncImage(post.image, post.caption.value(language), Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                PostMedia(post, Modifier.fillMaxSize())
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -107,13 +120,25 @@ fun ShortsScreen(
                     verticalArrangement = Arrangement.spacedBy(9.dp),
                 ) {
                     ShortsAction(
-                        if (liked[post.id] == true) Icons.Rounded.Favorite else Icons.Outlined.FavoriteBorder,
-                        "${post.likes + if (liked[post.id] == true) 1 else 0}",
-                    ) { liked[post.id] = liked[post.id] != true }
-                    ShortsAction(Icons.Outlined.ChatBubbleOutline, "${post.comments.size}") {}
+                        if (post.id in state.likedPostIds) Icons.Rounded.Favorite else Icons.Outlined.FavoriteBorder,
+                        "${post.likes + if (post.id in state.likedPostIds) 1 else 0}",
+                    ) { state.togglePostLike(post.id) }
+                    ShortsAction(Icons.Outlined.ChatBubbleOutline, "${state.commentsFor(post).size}") {
+                        commentPost = post
+                    }
                     ShortsAction(Icons.Outlined.Map, "Route", onPlace)
                     ShortsAction(Icons.Outlined.AutoAwesome, "SAI", onSai)
-                    ShortsAction(Icons.Outlined.Share, "") {}
+                    ShortsAction(Icons.Outlined.Share, "") {
+                        context.startActivity(
+                            Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, "${post.caption.value(language)}\nSnapar")
+                                },
+                                "Snapar",
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -126,6 +151,83 @@ fun ShortsScreen(
         ) {
             Icon(Icons.Outlined.ArrowBack, "Back", tint = Color.White)
         }
+    }
+
+    commentPost?.let { post ->
+        AlertDialog(
+            onDismissRequest = {
+                commentPost = null
+                commentText = ""
+            },
+            title = { Text(shortsLocal(language, "Пікірлер", "Комментарии", "Comments")) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.commentsFor(post).forEach { Text("• $it") }
+                    OutlinedTextField(
+                        value = commentText,
+                        onValueChange = { commentText = it },
+                        label = { Text(shortsLocal(language, "Пікір жазыңыз", "Напишите комментарий", "Write a comment")) },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        state.addComment(post.id, commentText)
+                        commentText = ""
+                    },
+                    enabled = commentText.isNotBlank(),
+                ) { Text(shortsLocal(language, "Жіберу", "Отправить", "Send")) }
+            },
+            dismissButton = {
+                TextButton(onClick = { commentPost = null }) { Text(shortsLocal(language, "Жабу", "Закрыть", "Close")) }
+            },
+        )
+    }
+}
+
+@Composable
+private fun PostMedia(post: CommunityPost, modifier: Modifier) {
+    if (post.mediaType == "video") {
+        AndroidView(
+            modifier = modifier,
+            factory = { context ->
+                VideoView(context).apply {
+                    setVideoURI(android.net.Uri.parse(post.image.toString()))
+                    setOnPreparedListener { player ->
+                        player.isLooping = true
+                        start()
+                    }
+                }
+            },
+        )
+    } else {
+        var panX by remember(post.id) { mutableStateOf(0f) }
+        AsyncImage(
+            post.image,
+            post.user,
+            modifier
+                .graphicsLayer {
+                    if (post.is360) {
+                        scaleX = 1.35f
+                        scaleY = 1.35f
+                        translationX = panX
+                    }
+                }
+                .then(
+                    if (post.is360) {
+                        Modifier.pointerInput(post.id) {
+                            detectDragGestures { change, drag ->
+                                change.consume()
+                                panX = (panX + drag.x).coerceIn(-420f, 420f)
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
+            contentScale = ContentScale.Crop,
+        )
     }
 }
 
@@ -144,4 +246,10 @@ private fun ShortsAction(
         }
         if (label.isNotBlank()) Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
     }
+}
+
+private fun shortsLocal(language: AppLanguage, kk: String, ru: String, en: String) = when (language) {
+    AppLanguage.Kazakh -> kk
+    AppLanguage.Russian -> ru
+    AppLanguage.English -> en
 }

@@ -2,10 +2,12 @@ package kz.snapar.app.ui.screens
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
+import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -33,6 +35,10 @@ import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -66,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import kz.snapar.app.R
 import kz.snapar.app.model.AppLanguage
@@ -89,15 +96,23 @@ fun GeoSnapScreen(
     val labels = strings(state.language)
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    var selectedImage by remember { mutableStateOf<Uri?>(null) }
+    var selectedMedia by remember { mutableStateOf<Uri?>(null) }
+    var mediaType by remember { mutableStateOf("image") }
     var caption by remember { mutableStateOf("") }
     var is360 by remember { mutableStateOf(false) }
-    var gpsEnabled by remember { mutableStateOf(true) }
-    var locationText by remember { mutableStateOf(geoLocal(state.language, "GPS күтілуде", "Ожидание GPS", "Waiting for GPS")) }
+    var gpsEnabled by remember { mutableStateOf(false) }
+    var locationText by remember { mutableStateOf(geoLocal(state.language, "GPS өшірулі", "GPS выключен", "GPS off")) }
     var commentsPost by remember { mutableStateOf<CommunityPost?>(null) }
+    var commentText by remember { mutableStateOf("") }
 
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        selectedImage = uri
+    val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            selectedMedia = uri
+            mediaType = if (context.contentResolver.getType(uri)?.startsWith("video") == true) "video" else "image"
+        }
     }
     val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         if (result.values.any { it }) {
@@ -114,12 +129,12 @@ fun GeoSnapScreen(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "Back") }
-                Text("GeoSnap", style = MaterialTheme.typography.titleLarge, color = SnaparNavy)
+                Text("GeoSnap", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             }
         },
     ) { padding ->
@@ -132,7 +147,7 @@ fun GeoSnapScreen(
         ) {
             item {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(20.dp),
                 ) {
                     Column(
@@ -140,13 +155,13 @@ fun GeoSnapScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(13.dp),
                     ) {
-                        if (selectedImage == null) {
+                        if (selectedMedia == null) {
                             Box(
                                 Modifier
                                     .fillMaxWidth()
                                     .height(185.dp)
                                     .background(SnaparTurquoise.copy(.1f), RoundedCornerShape(16.dp))
-                                    .clickable { imagePicker.launch("image/*") },
+                                    .clickable { mediaPicker.launch(arrayOf("image/*", "video/*")) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -158,18 +173,33 @@ fun GeoSnapScreen(
                                 }
                             }
                         } else {
-                            AsyncImage(
-                                selectedImage,
-                                "Selected photo",
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(250.dp)
-                                    .clip(RoundedCornerShape(16.dp)),
-                                contentScale = ContentScale.Crop,
-                            )
+                            if (mediaType == "video") {
+                                AndroidView(
+                                    modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(16.dp)),
+                                    factory = { videoContext ->
+                                        VideoView(videoContext).apply {
+                                            setVideoURI(selectedMedia)
+                                            setOnPreparedListener { player ->
+                                                player.isLooping = true
+                                                start()
+                                            }
+                                        }
+                                    },
+                                )
+                            } else {
+                                AsyncImage(
+                                    selectedMedia,
+                                    "Selected photo",
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(250.dp)
+                                        .clip(RoundedCornerShape(16.dp)),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
                         }
                         Button(
-                            onClick = { imagePicker.launch("image/*") },
+                            onClick = { mediaPicker.launch(arrayOf("image/*", "video/*")) },
                             colors = ButtonDefaults.buttonColors(containerColor = SnaparTurquoise),
                             shape = RoundedCornerShape(14.dp),
                         ) {
@@ -179,22 +209,34 @@ fun GeoSnapScreen(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(
-                                selected = !is360,
-                                onClick = { is360 = false },
+                                selected = mediaType == "image" && !is360,
+                                onClick = {
+                                    mediaType = "image"
+                                    is360 = false
+                                    mediaPicker.launch(arrayOf("image/*"))
+                                },
                                 label = { Text("Фото") },
                                 colors = snapChipColors(),
                             )
                             FilterChip(
-                                selected = is360,
-                                onClick = { is360 = true },
+                                selected = mediaType == "image" && is360,
+                                onClick = {
+                                    mediaType = "image"
+                                    is360 = true
+                                    mediaPicker.launch(arrayOf("image/*"))
+                                },
                                 label = { Text("360°") },
                                 colors = snapChipColors(),
                             )
                             FilterChip(
-                                selected = false,
-                                onClick = {},
+                                selected = mediaType == "video",
+                                onClick = {
+                                    mediaType = "video"
+                                    is360 = false
+                                    mediaPicker.launch(arrayOf("video/*"))
+                                },
                                 label = { Text("Видео") },
-                                enabled = false,
+                                colors = snapChipColors(),
                             )
                         }
                         OutlinedTextField(
@@ -213,7 +255,7 @@ fun GeoSnapScreen(
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(geoLocal(state.language, "GPS орнын тіркеу", "Прикрепить GPS", "Attach GPS"), fontWeight = FontWeight.SemiBold)
-                                Text(locationText, color = SnaparMuted)
+                                Text(locationText, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Switch(
                                 checked = gpsEnabled,
@@ -232,7 +274,7 @@ fun GeoSnapScreen(
                         }
                         Button(
                             onClick = {
-                                val image = selectedImage ?: R.drawable.charyn
+                                val image = selectedMedia ?: R.drawable.charyn
                                 val post = CommunityPost(
                                     id = "user-${System.currentTimeMillis()}",
                                     user = "Азамат Н.",
@@ -247,14 +289,15 @@ fun GeoSnapScreen(
                                     comments = emptyList(),
                                     is360 = is360,
                                     verifiedGps = gpsEnabled,
+                                    mediaType = mediaType,
                                 )
                                 state.publish(post)
-                                selectedImage = null
+                                selectedMedia = null
                                 caption = ""
                                 scope.launch { snackbar.showSnackbar(geoLocal(state.language, "GeoSnap жарияланды +75 XP", "GeoSnap опубликован +75 XP", "GeoSnap published +75 XP")) }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = selectedImage != null,
+                            enabled = selectedMedia != null,
                             shape = RoundedCornerShape(14.dp),
                         ) {
                             Icon(Icons.Rounded.CheckCircle, null)
@@ -273,7 +316,7 @@ fun GeoSnapScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onOpenShorts(post) },
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(16.dp),
                 ) {
                     Column {
@@ -284,16 +327,59 @@ fun GeoSnapScreen(
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(post.user, fontWeight = FontWeight.Bold)
-                                Text(post.location.value(state.language), color = SnaparMuted)
+                                Text(post.location.value(state.language), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             if (post.verifiedGps) Icon(Icons.Outlined.Public, "GPS", tint = SnaparPrimary)
                         }
-                        AsyncImage(post.image, post.caption.value(state.language), Modifier.fillMaxWidth().height(260.dp), contentScale = ContentScale.Crop)
+                        if (post.mediaType == "video") {
+                            AndroidView(
+                                modifier = Modifier.fillMaxWidth().height(260.dp),
+                                factory = { videoContext ->
+                                    VideoView(videoContext).apply {
+                                        setVideoURI(Uri.parse(post.image.toString()))
+                                        setOnPreparedListener { player ->
+                                            player.isLooping = true
+                                            start()
+                                        }
+                                    }
+                                },
+                            )
+                        } else {
+                            AsyncImage(post.image, post.caption.value(state.language), Modifier.fillMaxWidth().height(260.dp), contentScale = ContentScale.Crop)
+                        }
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("♡ ${post.likes}")
-                            Text(
-                                "💬 ${post.comments.size}",
+                            Row(
+                                modifier = Modifier.clickable { state.togglePostLike(post.id) },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    if (post.id in state.likedPostIds) Icons.Rounded.Favorite else Icons.Outlined.FavoriteBorder,
+                                    null,
+                                    tint = if (post.id in state.likedPostIds) Color.Red else SnaparNavy,
+                                )
+                                Text(" ${post.likes + if (post.id in state.likedPostIds) 1 else 0}")
+                            }
+                            Row(
                                 modifier = Modifier.clickable { commentsPost = post },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Outlined.ChatBubbleOutline, null)
+                                Text(" ${state.commentsFor(post).size}")
+                            }
+                            Icon(
+                                Icons.Outlined.Share,
+                                "Share",
+                                modifier = Modifier.clickable {
+                                    context.startActivity(
+                                        Intent.createChooser(
+                                            Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, post.caption.value(state.language))
+                                            },
+                                            "Snapar",
+                                        ),
+                                    )
+                                },
                             )
                             if (post.is360) Text("360°", color = SnaparPrimary, fontWeight = FontWeight.Bold)
                         }
@@ -309,11 +395,31 @@ fun GeoSnapScreen(
             title = { Text(geoLocal(state.language, "Пікірлер", "Комментарии", "Comments")) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (post.comments.isEmpty()) Text(geoLocal(state.language, "Әзірге пікір жоқ", "Комментариев пока нет", "No comments yet"))
-                    post.comments.forEach { Text("• $it") }
+                    val comments = state.commentsFor(post)
+                    if (comments.isEmpty()) Text(geoLocal(state.language, "Әзірге пікір жоқ", "Комментариев пока нет", "No comments yet"))
+                    comments.forEach { Text("• $it") }
+                    OutlinedTextField(
+                        value = commentText,
+                        onValueChange = { commentText = it },
+                        label = { Text(geoLocal(state.language, "Пікір", "Комментарий", "Comment")) },
+                    )
                 }
             },
-            confirmButton = { TextButton(onClick = { commentsPost = null }) { Text("OK") } },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        state.addComment(post.id, commentText)
+                        commentText = ""
+                    },
+                    enabled = commentText.isNotBlank(),
+                ) { Text(geoLocal(state.language, "Жіберу", "Отправить", "Send")) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    commentsPost = null
+                    commentText = ""
+                }) { Text(geoLocal(state.language, "Жабу", "Закрыть", "Close")) }
+            },
         )
     }
 }

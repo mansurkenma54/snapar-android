@@ -42,6 +42,14 @@ data class UiStrings(
     val businessMode: String,
     val savedPlaces: String,
     val visited: String,
+    val booking: String,
+    val bookNow: String,
+    val reviews: String,
+    val gpsVerifiedBadge: String,
+    val priceAnalysis: String,
+    val guests: String,
+    val bookingConfirmed: String,
+    val bookingDemo: String,
 )
 
 fun strings(language: AppLanguage): UiStrings = when (language) {
@@ -85,6 +93,14 @@ fun strings(language: AppLanguage): UiStrings = when (language) {
         businessMode = "Бизнес режим",
         savedPlaces = "Сақталған орындар",
         visited = "Барған орындар",
+        booking = "Брондау",
+        bookNow = "Қазір брондау",
+        reviews = "Пікірлер",
+        gpsVerifiedBadge = "GPS-расталған",
+        priceAnalysis = "Баға талдауы",
+        guests = "адам",
+        bookingConfirmed = "Брондау расталды!",
+        bookingDemo = "Demo · Kaspi sandbox",
     )
 
     AppLanguage.Russian -> UiStrings(
@@ -127,6 +143,14 @@ fun strings(language: AppLanguage): UiStrings = when (language) {
         businessMode = "Бизнес-режим",
         savedPlaces = "Сохранённые места",
         visited = "Посещённые места",
+        booking = "Бронирование",
+        bookNow = "Забронировать сейчас",
+        reviews = "Отзывы",
+        gpsVerifiedBadge = "GPS-подтверждён",
+        priceAnalysis = "Анализ цены",
+        guests = "чел.",
+        bookingConfirmed = "Бронь подтверждена!",
+        bookingDemo = "Demo · Kaspi sandbox",
     )
 
     AppLanguage.English -> UiStrings(
@@ -169,5 +193,13 @@ fun strings(language: AppLanguage): UiStrings = when (language) {
         businessMode = "Business mode",
         savedPlaces = "Saved places",
         visited = "Visited places",
+        booking = "Booking",
+        bookNow = "Book now",
+        reviews = "Reviews",
+        gpsVerifiedBadge = "GPS-verified",
+        priceAnalysis = "Price analysis",
+        guests = "guests",
+        bookingConfirmed = "Booking confirmed!",
+        bookingDemo = "Demo · Kaspi sandbox",
     )
 }

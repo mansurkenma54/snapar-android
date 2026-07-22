@@ -26,6 +26,16 @@ data class StoredPreferences(
     val businessMode: Boolean = false,
     val publishedCount: Int = 0,
     val routeCount: Int = 0,
+    val theme: String = "system",
+    val largeText: Boolean = false,
+    val reducedMotion: Boolean = false,
+    val likedPostIds: Set<String> = emptySet(),
+    val postComments: Set<String> = emptySet(),
+    val publishedPosts: Set<String> = emptySet(),
+    val generatedRoutes: Set<String> = emptySet(),
+    val savedRouteIds: Set<String> = emptySet(),
+    val venues: Set<String> = emptySet(),
+    val readNotificationIds: Set<String> = emptySet(),
 )
 
 class AppPreferences(private val context: Context) {
@@ -40,6 +50,16 @@ class AppPreferences(private val context: Context) {
         val businessMode = booleanPreferencesKey("business_mode")
         val publishedCount = intPreferencesKey("published_count")
         val routeCount = intPreferencesKey("route_count")
+        val theme = stringPreferencesKey("theme")
+        val largeText = booleanPreferencesKey("large_text")
+        val reducedMotion = booleanPreferencesKey("reduced_motion")
+        val likedPostIds = stringSetPreferencesKey("liked_post_ids")
+        val postComments = stringSetPreferencesKey("post_comments")
+        val publishedPosts = stringSetPreferencesKey("published_posts")
+        val generatedRoutes = stringSetPreferencesKey("generated_routes")
+        val savedRouteIds = stringSetPreferencesKey("saved_route_ids")
+        val venues = stringSetPreferencesKey("venues")
+        val readNotificationIds = stringSetPreferencesKey("read_notification_ids")
     }
 
     val values: Flow<StoredPreferences> = context.snaparDataStore.data
@@ -59,6 +79,16 @@ class AppPreferences(private val context: Context) {
                 businessMode = prefs[Keys.businessMode] ?: false,
                 publishedCount = prefs[Keys.publishedCount] ?: 0,
                 routeCount = prefs[Keys.routeCount] ?: 0,
+                theme = prefs[Keys.theme] ?: "system",
+                largeText = prefs[Keys.largeText] ?: false,
+                reducedMotion = prefs[Keys.reducedMotion] ?: false,
+                likedPostIds = prefs[Keys.likedPostIds] ?: emptySet(),
+                postComments = prefs[Keys.postComments] ?: emptySet(),
+                publishedPosts = prefs[Keys.publishedPosts] ?: emptySet(),
+                generatedRoutes = prefs[Keys.generatedRoutes] ?: emptySet(),
+                savedRouteIds = prefs[Keys.savedRouteIds] ?: emptySet(),
+                venues = prefs[Keys.venues] ?: emptySet(),
+                readNotificationIds = prefs[Keys.readNotificationIds] ?: emptySet(),
             )
         }
 
@@ -72,6 +102,16 @@ class AppPreferences(private val context: Context) {
     suspend fun setBusinessMode(value: Boolean) = set(Keys.businessMode, value)
     suspend fun setPublishedCount(value: Int) = set(Keys.publishedCount, value)
     suspend fun setRouteCount(value: Int) = set(Keys.routeCount, value)
+    suspend fun setTheme(value: String) = set(Keys.theme, value)
+    suspend fun setLargeText(value: Boolean) = set(Keys.largeText, value)
+    suspend fun setReducedMotion(value: Boolean) = set(Keys.reducedMotion, value)
+    suspend fun setLikedPostIds(value: Set<String>) = set(Keys.likedPostIds, value)
+    suspend fun setPostComments(value: Set<String>) = set(Keys.postComments, value)
+    suspend fun setPublishedPosts(value: Set<String>) = set(Keys.publishedPosts, value)
+    suspend fun setGeneratedRoutes(value: Set<String>) = set(Keys.generatedRoutes, value)
+    suspend fun setSavedRouteIds(value: Set<String>) = set(Keys.savedRouteIds, value)
+    suspend fun setVenues(value: Set<String>) = set(Keys.venues, value)
+    suspend fun setReadNotificationIds(value: Set<String>) = set(Keys.readNotificationIds, value)
 
     private suspend fun <T> set(key: Preferences.Key<T>, value: T) {
         context.snaparDataStore.edit { it[key] = value }

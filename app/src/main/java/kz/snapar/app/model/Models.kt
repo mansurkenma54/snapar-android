@@ -18,6 +18,12 @@ enum class AppLanguage(val code: String, val label: String) {
     English("en", "English"),
 }
 
+enum class AppTheme(val code: String) {
+    System("system"),
+    Light("light"),
+    Dark("dark"),
+}
+
 data class LocalText(
     val kk: String,
     val ru: String,
@@ -85,6 +91,10 @@ data class TravelRoute(
     val distanceKm: Int,
     val interests: Set<String>,
     val itinerary: List<RouteDay>,
+    val transport: LocalText = LocalText("", "", ""),
+    val lodging: LocalText = LocalText("", "", ""),
+    val pace: LocalText = LocalText("", "", ""),
+    val departureDate: String = "",
 )
 
 data class CommunityPost(
@@ -97,6 +107,7 @@ data class CommunityPost(
     val comments: List<String>,
     val is360: Boolean = false,
     val verifiedGps: Boolean = true,
+    val mediaType: String = "image",
 )
 
 data class ChatMessage(
@@ -111,4 +122,64 @@ data class CalendarOffer(
     val condition: LocalText,
     val hotelPrice: Int,
     val crowdPercent: Int,
+)
+
+data class DailyForecast(
+    val date: String,
+    val weatherCode: Int,
+    val temperatureMax: Int,
+    val temperatureMin: Int,
+    val precipitationPercent: Int,
+    val sunrise: String,
+    val sunset: String,
+)
+
+data class LiveWeather(
+    val current: Weather,
+    val daily: List<DailyForecast>,
+    val updatedAtMillis: Long,
+)
+
+data class VenueListing(
+    val id: String,
+    val name: String,
+    val category: String,
+    val address: String,
+    val averagePrice: Int,
+    val description: String,
+    val status: String = "review",
+    val imageUri: String = "",
+)
+
+data class AppNotification(
+    val id: String,
+    val title: LocalText,
+    val message: LocalText,
+    val time: LocalText,
+    val isRead: Boolean = false,
+)
+
+data class Review(
+    val id: String,
+    val user: String,
+    val rating: Float,
+    val text: LocalText,
+    val gpsVerified: Boolean,
+    val date: LocalText,
+    val helpful: Int = 0,
+)
+
+enum class FairnessVerdict { Fair, Cheap, Overpriced }
+
+data class PriceFairness(
+    val marketAvg: Int,
+    val verdict: FairnessVerdict,
+    val score: Int,
+    val tip: LocalText,
+)
+
+data class BookingSlot(
+    val dateLabel: LocalText,
+    val price: Int,
+    val available: Boolean = true,
 )

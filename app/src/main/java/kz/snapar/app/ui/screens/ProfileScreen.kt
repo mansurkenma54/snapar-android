@@ -1,5 +1,9 @@
 package kz.snapar.app.ui.screens
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +31,9 @@ import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.MotionPhotosOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -49,7 +56,9 @@ import coil.compose.AsyncImage
 import kz.snapar.app.R
 import kz.snapar.app.data.SampleData
 import kz.snapar.app.model.AppLanguage
+import kz.snapar.app.model.AppTheme
 import kz.snapar.app.model.Place
+import kz.snapar.app.model.TravelRoute
 import kz.snapar.app.ui.SnaparState
 import kz.snapar.app.ui.components.SectionTitle
 import kz.snapar.app.ui.strings
@@ -65,9 +74,14 @@ fun ProfileScreen(
     state: SnaparState,
     onBusiness: () -> Unit,
     onPlace: (Place) -> Unit,
+    onRoute: (TravelRoute) -> Unit,
 ) {
     val labels = strings(state.language)
     val saved = SampleData.places.filter { it.id in state.savedIds }
+    val savedRoutes = (state.generatedRoutes + SampleData.routes).filter { it.id in state.savedRouteIds }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        state.setNotifications(granted)
+    }
     LazyColumn(
         modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
@@ -85,16 +99,26 @@ fun ProfileScreen(
                 }
                 Spacer(Modifier.size(10.dp))
                 Text("Азамат Н.", style = MaterialTheme.typography.titleLarge)
-                Text("Steppe Explorer & Urban Nomad", color = SnaparMuted)
+                Text("Steppe Explorer & Urban Nomad", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${state.level} level · ${state.xp} XP", color = SnaparPrimary, fontWeight = FontWeight.Bold)
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ProfileStat(Icons.Outlined.LocationOn, "${state.visitedIds.size}", profileLocal(state.language, "Орын", "Места", "Places"), Modifier.weight(1f))
-                ProfileStat(Icons.Outlined.Route, "${state.routeCount}", profileLocal(state.language, "Маршрут", "Маршруты", "Routes"), Modifier.weight(1f))
+                ProfileStat(Icons.Outlined.Route, "${state.traveledKm}", "км", Modifier.weight(1f))
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ProfileStat(Icons.Outlined.CameraAlt, "${state.publishedCount}", "GeoSnap", Modifier.weight(1f))
-                ProfileStat(Icons.Outlined.Favorite, "${state.likedIds.size}", profileLocal(state.language, "Ұнату", "Лайки", "Likes"), Modifier.weight(1f))
+                ProfileStat(Icons.Outlined.Route, "${state.routeCount}", profileLocal(state.language, "Маршрут", "Маршруты", "Routes"), Modifier.weight(1f))
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ProfileStat(Icons.Outlined.Favorite, "${state.likedIds.size + state.likedPostIds.size}", profileLocal(state.language, "Ұнату", "Лайки", "Likes"), Modifier.weight(1f))
+                ProfileStat(Icons.Outlined.Settings, "${state.xp}", "XP", Modifier.weight(1f))
             }
         }
         item {
@@ -131,12 +155,56 @@ fun ProfileScreen(
         }
         item {
             SettingRow(Icons.Outlined.Notifications, labels.notifications) {
-                Switch(checked = state.notificationsEnabled, onCheckedChange = state::setNotifications)
+                Switch(
+                    checked = state.notificationsEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            state.setNotifications(enabled)
+                        }
+                    },
+                )
             }
         }
         item {
-            SettingRow(Icons.Outlined.Settings, labels.settings) {
-                Text(profileLocal(state.language, "Қауіпсіз", "Готово", "Ready"), color = SnaparMuted)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.DarkMode, null, tint = SnaparPrimary)
+                    Spacer(Modifier.width(10.dp))
+                    Text(profileLocal(state.language, "Тақырып", "Тема", "Theme"), fontWeight = FontWeight.Bold)
+                }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(AppTheme.entries) { theme ->
+                        FilterChip(
+                            selected = state.theme == theme,
+                            onClick = { state.updateTheme(theme) },
+                            label = {
+                                Text(
+                                    when (theme) {
+                                        AppTheme.System -> profileLocal(state.language, "Жүйе", "Система", "System")
+                                        AppTheme.Light -> profileLocal(state.language, "Жарық", "Светлая", "Light")
+                                        AppTheme.Dark -> profileLocal(state.language, "Қараңғы", "Тёмная", "Dark")
+                                    },
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = SnaparTurquoise,
+                                selectedLabelColor = Color.White,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+        item {
+            SettingRow(Icons.Outlined.FormatSize, profileLocal(state.language, "Үлкен мәтін", "Крупный текст", "Large text")) {
+                Switch(checked = state.largeText, onCheckedChange = state::updateLargeText)
+            }
+        }
+        item {
+            SettingRow(Icons.Outlined.MotionPhotosOff, profileLocal(state.language, "Анимацияны азайту", "Уменьшить анимацию", "Reduce motion")) {
+                Switch(checked = state.reducedMotion, onCheckedChange = state::updateReducedMotion)
             }
         }
         if (saved.isNotEmpty()) {
@@ -144,16 +212,34 @@ fun ProfileScreen(
             items(saved) { place ->
                 Card(
                     Modifier.fillMaxWidth().clickable { onPlace(place) },
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(place.image, place.name.value(state.language), Modifier.size(70.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(place.name.value(state.language), fontWeight = FontWeight.Bold)
-                            Text(place.region.value(state.language), color = SnaparMuted)
+                            Text(place.region.value(state.language), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Icon(Icons.Outlined.Favorite, null, tint = SnaparGold)
+                    }
+                }
+            }
+        }
+        if (savedRoutes.isNotEmpty()) {
+            item { SectionTitle(profileLocal(state.language, "Сақталған маршруттар", "Сохранённые маршруты", "Saved routes")) }
+            items(savedRoutes) { route ->
+                Card(
+                    Modifier.fillMaxWidth().clickable { onRoute(route) },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(route.image, route.title.value(state.language), Modifier.size(70.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(route.title.value(state.language), fontWeight = FontWeight.Bold)
+                            Text("${route.days} күн · ${route.price} ₸", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
@@ -168,11 +254,11 @@ private fun ProfileStat(
     label: String,
     modifier: Modifier,
 ) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
+    Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(14.dp)) {
         Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, null, tint = SnaparTurquoise, modifier = Modifier.size(20.dp))
-            Text(value, fontWeight = FontWeight.Bold, color = SnaparNavy)
-            Text(label, fontSize = 9.sp, color = SnaparMuted, maxLines = 1)
+            Text(value, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text(label, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
 }
@@ -183,7 +269,7 @@ private fun SettingRow(
     title: String,
     trailing: @Composable () -> Unit,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(15.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(15.dp)) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = SnaparPrimary)
             Spacer(Modifier.width(10.dp))
