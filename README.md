@@ -8,7 +8,7 @@
 
 ## Жүктемей-ақ тексеру (браузерде ашу)
 
-**[Try it live on Appetize.io →](https://appetize.io/app/b_w3ymx4xn6gun7gpqvwfi6xmcju)**
+**[Try it live on Appetize.io →](https://appetize.io/app/b_lexdwexkpy24ijt2gh24keuuwy)**
 
 Сілтемені ашыңыз, "Tap to Start" басыңыз — қосымша браузерде виртуалды Android телефонда (Pixel 7, Android 13) тікелей іске қосылады. Ешнәрсе орнатудың қажеті жоқ.
 
