@@ -233,7 +233,7 @@ fun DiscoverScreen(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionTitle("Hidden Kazakhstan")
+                SectionTitle(local(language, "Жасырын Қазақстан", "Скрытый Казахстан", "Hidden Kazakhstan"))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     items(SampleData.places.filter { it.id >= 5 }) { place ->
                         HiddenCard(place, language) { onPlace(place) }

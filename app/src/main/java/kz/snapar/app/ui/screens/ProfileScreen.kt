@@ -4,6 +4,11 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BusinessCenter
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LocationOn
@@ -34,16 +40,26 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.MotionPhotosOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +77,7 @@ import kz.snapar.app.model.Place
 import kz.snapar.app.model.TravelRoute
 import kz.snapar.app.ui.SnaparState
 import kz.snapar.app.ui.components.SectionTitle
+import kz.snapar.app.ui.components.pressScale
 import kz.snapar.app.ui.strings
 import kz.snapar.app.ui.theme.SnaparGold
 import kz.snapar.app.ui.theme.SnaparMuted
@@ -82,12 +99,22 @@ fun ProfileScreen(
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         state.setNotifications(granted)
     }
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    var showEditProfile by remember { mutableStateOf(false) }
+    var editName by remember(showEditProfile) { mutableStateOf(state.userName) }
+    var editEmail by remember(showEditProfile) { mutableStateOf(state.userEmail) }
     LazyColumn(
         modifier.fillMaxSize(),
         contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item {
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(380, easing = FastOutSlowInEasing)) +
+                    slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it / 5 },
+            ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Box(
                     Modifier
@@ -98,10 +125,21 @@ fun ProfileScreen(
                     AsyncImage(R.drawable.profile, "Profile", Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
                 }
                 Spacer(Modifier.size(10.dp))
-                Text("Азамат Н.", style = MaterialTheme.typography.titleLarge)
-                Text("Steppe Explorer & Urban Nomad", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        state.userName.ifBlank { profileLocal(state.language, "Саяхатшы", "Путешественник", "Traveler") },
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    IconButton(onClick = { showEditProfile = true }, modifier = Modifier.size(28.dp).pressScale()) {
+                        Icon(Icons.Outlined.Edit, contentDescription = "Edit profile", tint = SnaparPrimary, modifier = Modifier.size(16.dp))
+                    }
+                }
+                if (state.userEmail.isNotBlank()) {
+                    Text(state.userEmail, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Text("${state.level} level · ${state.xp} XP", color = SnaparPrimary, fontWeight = FontWeight.Bold)
             }
+            } // AnimatedVisibility end
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -126,7 +164,7 @@ fun ProfileScreen(
                 Switch(checked = state.businessMode, onCheckedChange = state::updateBusinessMode)
             }
             if (state.businessMode) {
-                Button(onClick = onBusiness, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Button(onClick = onBusiness, modifier = Modifier.fillMaxWidth().pressScale().padding(top = 8.dp)) {
                     Text(profileLocal(state.language, "Бизнес панелін ашу", "Открыть бизнес-панель", "Open business dashboard"))
                 }
             }
@@ -144,6 +182,7 @@ fun ProfileScreen(
                             selected = state.language == language,
                             onClick = { state.updateLanguage(language) },
                             label = { Text(language.label) },
+                            modifier = Modifier.pressScale(),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = SnaparTurquoise,
                                 selectedLabelColor = Color.White,
@@ -188,6 +227,7 @@ fun ProfileScreen(
                                     },
                                 )
                             },
+                            modifier = Modifier.pressScale(),
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = SnaparTurquoise,
                                 selectedLabelColor = Color.White,
@@ -211,7 +251,7 @@ fun ProfileScreen(
             item { SectionTitle(labels.savedPlaces) }
             items(saved) { place ->
                 Card(
-                    Modifier.fillMaxWidth().clickable { onPlace(place) },
+                    Modifier.fillMaxWidth().pressScale(0.98f).clickable { onPlace(place) },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -230,7 +270,7 @@ fun ProfileScreen(
             item { SectionTitle(profileLocal(state.language, "Сақталған маршруттар", "Сохранённые маршруты", "Saved routes")) }
             items(savedRoutes) { route ->
                 Card(
-                    Modifier.fillMaxWidth().clickable { onRoute(route) },
+                    Modifier.fillMaxWidth().pressScale(0.98f).clickable { onRoute(route) },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -238,12 +278,58 @@ fun ProfileScreen(
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(route.title.value(state.language), fontWeight = FontWeight.Bold)
-                            Text("${route.days} күн · ${route.price} ₸", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "${route.days} ${profileLocal(state.language, "күн", "дней", "days")} · ${route.price} ₸",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showEditProfile) {
+        AlertDialog(
+            onDismissRequest = { showEditProfile = false },
+            title = { Text(profileLocal(state.language, "Профильді өңдеу", "Редактировать профиль", "Edit profile")) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(profileLocal(state.language, "Атыңыз", "Имя", "Name")) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = SnaparTurquoise),
+                    )
+                    OutlinedTextField(
+                        value = editEmail,
+                        onValueChange = { editEmail = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Email") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = SnaparTurquoise),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        state.completeRegistration(editName, editEmail)
+                        showEditProfile = false
+                    },
+                    enabled = editName.isNotBlank(),
+                ) {
+                    Text(profileLocal(state.language, "Сақтау", "Сохранить", "Save"))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditProfile = false }) {
+                    Text(profileLocal(state.language, "Бас тарту", "Отмена", "Cancel"))
+                }
+            },
+        )
     }
 }
 

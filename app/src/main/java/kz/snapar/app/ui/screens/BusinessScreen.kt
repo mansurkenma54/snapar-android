@@ -4,6 +4,11 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +42,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,12 +55,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import kz.snapar.app.model.AppLanguage
 import kz.snapar.app.model.VenueListing
 import kz.snapar.app.ui.SnaparState
 import kz.snapar.app.ui.components.SectionTitle
+import kz.snapar.app.ui.components.pressScale
+import kz.snapar.app.ui.theme.SnaparGold
 import kz.snapar.app.ui.theme.SnaparMuted
 import kz.snapar.app.ui.theme.SnaparNavy
 import kz.snapar.app.ui.theme.SnaparPrimary
@@ -82,6 +91,9 @@ fun BusinessScreen(state: SnaparState, onBack: () -> Unit) {
         }
     }
 
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
@@ -97,12 +109,35 @@ fun BusinessScreen(state: SnaparState, onBack: () -> Unit) {
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            SectionTitle(businessLocal(language, "Аналитика", "Аналитика", "Analytics"))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                BusinessMetric(Icons.Outlined.Visibility, "${12 + state.venues.size * 3}.4K", businessLocal(language, "Көрілім", "Просмотры", "Views"), Modifier.weight(1f))
-                BusinessMetric(Icons.Outlined.People, "${842 + state.venues.size * 75}", businessLocal(language, "Қызықты", "Интерес", "Leads"), Modifier.weight(1f))
-                BusinessMetric(Icons.Outlined.Payments, "${6 + state.venues.size}.2%", businessLocal(language, "Өтім", "Конверсия", "Conversion"), Modifier.weight(1f))
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(380, easing = FastOutSlowInEasing)) +
+                    slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it / 5 },
+            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionTitle(businessLocal(language, "Аналитика", "Аналитика", "Analytics"))
+                    Spacer(Modifier.weight(1f))
+                    Surface(
+                        color = SnaparGold.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(20.dp),
+                    ) {
+                        Text(
+                            businessLocal(language, "Demo · үлгі деректер", "Demo · демо-данные", "Demo · sample data"),
+                            Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            color = SnaparGold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    BusinessMetric(Icons.Outlined.Visibility, "${12 + state.venues.size * 3}.4K", businessLocal(language, "Көрілім", "Просмотры", "Views"), Modifier.weight(1f))
+                    BusinessMetric(Icons.Outlined.People, "${842 + state.venues.size * 75}", businessLocal(language, "Қызықты", "Интерес", "Leads"), Modifier.weight(1f))
+                    BusinessMetric(Icons.Outlined.Payments, "${6 + state.venues.size}.2%", businessLocal(language, "Өтім", "Конверсия", "Conversion"), Modifier.weight(1f))
+                }
             }
+            } // AnimatedVisibility end
             SectionTitle(businessLocal(language, "Жаңа орын қосу", "Добавить новое место", "Add a new venue"))
             OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(businessLocal(language, "Атауы", "Название", "Name")) }, singleLine = true)
             OutlinedTextField(category, { category = it }, Modifier.fillMaxWidth(), label = { Text(businessLocal(language, "Санат", "Категория", "Category")) }, singleLine = true)
@@ -124,7 +159,7 @@ fun BusinessScreen(state: SnaparState, onBack: () -> Unit) {
             )
             OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth(), label = { Text(businessLocal(language, "Сипаттама", "Описание", "Description")) }, minLines = 3)
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().pressScale(),
                 onClick = { imagePicker.launch(arrayOf("image/*")) },
                 colors = CardDefaults.cardColors(containerColor = SnaparTurquoise.copy(.1f)),
                 shape = RoundedCornerShape(16.dp),

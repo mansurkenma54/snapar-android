@@ -1,5 +1,10 @@
 package kz.snapar.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +45,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +66,7 @@ import kz.snapar.app.model.AppLanguage
 import kz.snapar.app.model.TravelRoute
 import kz.snapar.app.ui.components.SectionTitle
 import kz.snapar.app.ui.components.formatTenge
+import kz.snapar.app.ui.components.pressScale
 import kz.snapar.app.ui.strings
 import kz.snapar.app.ui.theme.SnaparGold
 import kz.snapar.app.ui.theme.SnaparMuted
@@ -99,6 +106,9 @@ fun RoutesScreen(
             }
         }
 
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp),
@@ -112,6 +122,11 @@ fun RoutesScreen(
             ) {
                 AsyncImage(R.drawable.routes_map, "Kazakhstan map", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x33000000), Color(0x11FFFFFF), Color(0xFFF4FBF9)))))
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(380, easing = FastOutSlowInEasing)) +
+                        slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it / 5 },
+                ) {
                 Column(
                     Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -147,6 +162,7 @@ fun RoutesScreen(
                         }
                     }
                 }
+                } // AnimatedVisibility end
                 MapMarker(
                     "Көлсай",
                     Modifier.align(Alignment.Center).padding(top = 30.dp),
@@ -206,7 +222,10 @@ private fun MapMarker(
     color: Color = SnaparPrimary,
     onClick: () -> Unit = {},
 ) {
-    Column(modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier.pressScale(0.94f).clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Box(
             Modifier
                 .size(54.dp)
@@ -231,6 +250,7 @@ private fun RouteCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .pressScale(0.98f)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(18.dp),

@@ -1,5 +1,10 @@
 package kz.snapar.app.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,6 +42,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +58,7 @@ import kz.snapar.app.model.AppLanguage
 import kz.snapar.app.model.LocalText
 import kz.snapar.app.model.TravelRoute
 import kz.snapar.app.ui.components.formatTenge
+import kz.snapar.app.ui.components.pressScale
 import kz.snapar.app.ui.strings
 import kz.snapar.app.ui.theme.SnaparNavy
 import kz.snapar.app.ui.theme.SnaparPrimary
@@ -73,6 +80,8 @@ fun RouteBuilderScreen(
     var lodging by remember { mutableStateOf("guest") }
     var pace by remember { mutableStateOf("balanced") }
     var validationError by remember { mutableStateOf("") }
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
     val interestOptions = listOf(
         "nature" to localBuilder(language, "Табиғат", "Природа", "Nature"),
         "family" to localBuilder(language, "Отбасылық", "Семейный", "Family"),
@@ -157,7 +166,8 @@ fun RouteBuilderScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
+                            .height(56.dp)
+                            .pressScale(),
                         colors = ButtonDefaults.buttonColors(containerColor = SnaparTurquoise),
                         shape = RoundedCornerShape(16.dp),
                     ) {
@@ -177,6 +187,11 @@ fun RouteBuilderScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(380, easing = FastOutSlowInEasing)) +
+                    slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it / 5 },
+            ) {
             Surface(
                 color = SnaparTurquoise.copy(alpha = .12f),
                 shape = RoundedCornerShape(20.dp),
@@ -195,6 +210,7 @@ fun RouteBuilderScreen(
                     )
                 }
             }
+            } // AnimatedVisibility end
             OutlinedTextField(
                 value = origin,
                 onValueChange = { origin = it },
@@ -248,6 +264,7 @@ fun RouteBuilderScreen(
                                     interests = if (option.first in interests) interests - option.first else interests + option.first
                                 },
                                 label = { Text(option.second) },
+                                modifier = Modifier.pressScale(),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = SnaparTurquoise,
                                     selectedLabelColor = Color.White,
@@ -317,6 +334,7 @@ private fun ChoiceSection(
                     selected = selected == option.first,
                     onClick = { onSelect(option.first) },
                     label = { Text(option.second) },
+                    modifier = Modifier.pressScale(),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = SnaparTurquoise,
                         selectedLabelColor = Color.White,

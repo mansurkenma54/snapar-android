@@ -12,6 +12,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,7 +53,9 @@ import kz.snapar.app.model.CommunityPost
 import kz.snapar.app.model.Place
 import kz.snapar.app.model.TravelRoute
 import kz.snapar.app.ui.components.SnaparBottomBar
+import kz.snapar.app.ui.components.SnaparSlideSpring
 import kz.snapar.app.ui.components.SnaparTopBar
+import kz.snapar.app.ui.components.snaparEnterTween
 import kz.snapar.app.ui.screens.BookingScreen
 import kz.snapar.app.ui.screens.BusinessScreen
 import kz.snapar.app.ui.screens.DestinationScreen
@@ -60,6 +70,27 @@ import kz.snapar.app.ui.screens.RoutesScreen
 import kz.snapar.app.ui.screens.SaiScreen
 import kz.snapar.app.ui.screens.ShortsScreen
 import kz.snapar.app.ui.theme.SnaparTheme
+
+// Ағымдағы экранды сипаттайтын жабық тип — AnimatedContent-тің бір ғана
+// нысанды қадағалауы үшін алты бөлек nullable/boolean күйден шығарылады.
+private sealed interface ResolvedScreen {
+    data object MainTabs : ResolvedScreen
+    data class Shorts(val post: CommunityPost) : ResolvedScreen
+    data object RouteBuilder : ResolvedScreen
+    data class Booking(val place: Place) : ResolvedScreen
+    data class Destination(val place: Place) : ResolvedScreen
+    data class RouteDetail(val route: TravelRoute) : ResolvedScreen
+    data object Sai : ResolvedScreen
+    data object GeoSnap : ResolvedScreen
+    data object Business : ResolvedScreen
+}
+
+// Push (алға) пен pop (артқа) ауысуларын ажырату үшін "тереңдік" деңгейі.
+private fun rankOf(screen: ResolvedScreen): Int = when (screen) {
+    ResolvedScreen.MainTabs -> 0
+    is ResolvedScreen.Shorts, is ResolvedScreen.Booking -> 2
+    else -> 1
+}
 
 @Composable
 fun SnaparApp() {
@@ -119,149 +150,177 @@ private fun SnaparContent(state: SnaparState) {
         OnboardingScreen(
             language = state.language,
             onLanguageChange = state::updateLanguage,
-            onFinish = state::finishOnboarding,
+            onFinish = state::completeRegistration,
         )
         return
     }
 
-    selectedPost?.let { post ->
-        val relatedPlace = SampleData.places.firstOrNull { place ->
-            place.image == post.image || place.communityImages.any { it == post.image }
-        } ?: SampleData.places.firstOrNull { it.id == 4 }
-        ShortsScreen(
-            initialPost = post,
-            posts = state.sessionPosts + SampleData.posts,
-            language = state.language,
-            state = state,
-            onBack = { selectedPost = null },
-            onPlace = { selectedPlace = relatedPlace },
-            onSai = {
-                selectedPost = null
-                current = AppScreen.Sai
-            },
-        )
-        return
+    val resolved: ResolvedScreen = when {
+        selectedPost != null -> ResolvedScreen.Shorts(selectedPost!!)
+        showRouteBuilder -> ResolvedScreen.RouteBuilder
+        bookingPlace != null -> ResolvedScreen.Booking(bookingPlace!!)
+        selectedPlace != null -> ResolvedScreen.Destination(selectedPlace!!)
+        selectedRoute != null -> ResolvedScreen.RouteDetail(selectedRoute!!)
+        current == AppScreen.Sai -> ResolvedScreen.Sai
+        current == AppScreen.GeoSnap -> ResolvedScreen.GeoSnap
+        current == AppScreen.Business -> ResolvedScreen.Business
+        else -> ResolvedScreen.MainTabs
     }
 
-    if (showRouteBuilder) {
-        RouteBuilderScreen(
-            language = state.language,
-            onBack = { showRouteBuilder = false },
-            onGenerated = {
-                state.saveGeneratedRoute(it)
-                selectedRoute = it
-                selectedPlace = null
-                showRouteBuilder = false
-            },
-        )
-        return
-    }
-
-    bookingPlace?.let { place ->
-        BookingScreen(
-            place = place,
-            language = state.language,
-            onBack = { bookingPlace = null },
-        )
-        return
-    }
-
-    selectedPlace?.let { place ->
-        DestinationScreen(
-            place = place,
-            state = state,
-            onBack = { selectedPlace = null },
-            onOpenShorts = { selectedPost = it },
-            onAskSai = {
-                selectedPlace = null
-                current = AppScreen.Sai
-            },
-            onBuildRoute = { showRouteBuilder = true },
-            onBook = { bookingPlace = place },
-        )
-        return
-    }
-
-    selectedRoute?.let { route ->
-        RouteDetailScreen(route = route, state = state, onBack = { selectedRoute = null })
-        return
-    }
-
-    if (current == AppScreen.Sai) {
-        SaiScreen(
-            language = state.language,
-            messages = state.saiMessages,
-            onBack = { current = AppScreen.Discover },
-            onRouteGenerated = {
-                state.saveGeneratedRoute(it)
-                selectedRoute = it
-            },
-        )
-        return
-    }
-
-    if (current == AppScreen.GeoSnap) {
-        GeoSnapScreen(
-            state = state,
-            onBack = { current = AppScreen.Discover },
-            onOpenShorts = { selectedPost = it },
-        )
-        return
-    }
-
-    if (current == AppScreen.Business) {
-        BusinessScreen(state = state, onBack = { current = AppScreen.Profile })
-        return
-    }
-
-    Scaffold(
-        topBar = {
-            SnaparTopBar(
-                onMenuClick = { current = AppScreen.Profile },
-                onNotificationsClick = { showNotifications = true },
-                onCameraClick = { current = AppScreen.GeoSnap },
-                unreadNotifications = if (state.notificationsEnabled) state.unreadNotifications else 0,
-            )
+    AnimatedContent(
+        targetState = resolved,
+        transitionSpec = {
+            when {
+                state.reducedMotion -> EnterTransition.None togetherWith ExitTransition.None
+                rankOf(targetState) >= rankOf(initialState) ->
+                    (slideInHorizontally(SnaparSlideSpring) { width -> width / 3 } + fadeIn(snaparEnterTween()))
+                        .togetherWith(slideOutHorizontally(SnaparSlideSpring) { width -> -width / 4 } + fadeOut(snaparEnterTween()))
+                else ->
+                    (slideInHorizontally(SnaparSlideSpring) { width -> -width / 4 } + fadeIn(snaparEnterTween()))
+                        .togetherWith(slideOutHorizontally(SnaparSlideSpring) { width -> width / 3 } + fadeOut(snaparEnterTween()))
+            }
         },
-        bottomBar = {
-            SnaparBottomBar(
-                selected = current,
-                labels = labels,
-                onSelect = { current = it },
-                reducedMotion = state.reducedMotion,
-            )
-        },
-    ) { padding ->
-        when (current) {
-            AppScreen.Discover -> DiscoverScreen(
-                modifier = Modifier.padding(padding),
-                state = state,
-                onPlace = { selectedPlace = it },
-                onRoute = { current = AppScreen.Routes },
-                onSai = { current = AppScreen.Sai },
-                onGeoSnap = { current = AppScreen.GeoSnap },
-                onShorts = { selectedPost = it },
-            )
-            AppScreen.Routes -> RoutesScreen(
-                modifier = Modifier.padding(padding),
-                language = state.language,
-                routes = state.generatedRoutes + SampleData.routes,
-                onRoute = { selectedRoute = it },
-                onBuild = { showRouteBuilder = true },
-            )
-            AppScreen.Passport -> PassportScreen(
-                modifier = Modifier.padding(padding),
-                state = state,
-                onPlace = { selectedPlace = it },
-            )
-            AppScreen.Profile -> ProfileScreen(
-                modifier = Modifier.padding(padding),
-                state = state,
-                onBusiness = { current = AppScreen.Business },
-                onPlace = { selectedPlace = it },
-                onRoute = { selectedRoute = it },
-            )
-            else -> Unit
+        label = "nav-transition",
+    ) { screen ->
+        when (screen) {
+            is ResolvedScreen.Shorts -> {
+                val relatedPlace = SampleData.places.firstOrNull { place ->
+                    place.image == screen.post.image || place.communityImages.any { it == screen.post.image }
+                } ?: SampleData.places.firstOrNull { it.id == 4 }
+                ShortsScreen(
+                    initialPost = screen.post,
+                    posts = state.sessionPosts + SampleData.posts,
+                    language = state.language,
+                    state = state,
+                    onBack = { selectedPost = null },
+                    onPlace = { selectedPlace = relatedPlace },
+                    onSai = {
+                        selectedPost = null
+                        current = AppScreen.Sai
+                    },
+                )
+            }
+            ResolvedScreen.RouteBuilder -> {
+                RouteBuilderScreen(
+                    language = state.language,
+                    onBack = { showRouteBuilder = false },
+                    onGenerated = {
+                        state.saveGeneratedRoute(it)
+                        selectedRoute = it
+                        selectedPlace = null
+                        showRouteBuilder = false
+                    },
+                )
+            }
+            is ResolvedScreen.Booking -> {
+                BookingScreen(
+                    place = screen.place,
+                    language = state.language,
+                    onBack = { bookingPlace = null },
+                )
+            }
+            is ResolvedScreen.Destination -> {
+                DestinationScreen(
+                    place = screen.place,
+                    state = state,
+                    onBack = { selectedPlace = null },
+                    onOpenShorts = { selectedPost = it },
+                    onAskSai = {
+                        selectedPlace = null
+                        current = AppScreen.Sai
+                    },
+                    onBuildRoute = { showRouteBuilder = true },
+                    onBook = { bookingPlace = screen.place },
+                )
+            }
+            is ResolvedScreen.RouteDetail -> {
+                RouteDetailScreen(route = screen.route, state = state, onBack = { selectedRoute = null })
+            }
+            ResolvedScreen.Sai -> {
+                SaiScreen(
+                    language = state.language,
+                    messages = state.saiMessages,
+                    onBack = { current = AppScreen.Discover },
+                    onRouteGenerated = {
+                        state.saveGeneratedRoute(it)
+                        selectedRoute = it
+                    },
+                )
+            }
+            ResolvedScreen.GeoSnap -> {
+                GeoSnapScreen(
+                    state = state,
+                    onBack = { current = AppScreen.Discover },
+                    onOpenShorts = { selectedPost = it },
+                )
+            }
+            ResolvedScreen.Business -> {
+                BusinessScreen(state = state, onBack = { current = AppScreen.Profile })
+            }
+            ResolvedScreen.MainTabs -> {
+                Scaffold(
+                    topBar = {
+                        SnaparTopBar(
+                            onMenuClick = { current = AppScreen.Profile },
+                            onNotificationsClick = { showNotifications = true },
+                            onCameraClick = { current = AppScreen.GeoSnap },
+                            unreadNotifications = if (state.notificationsEnabled) state.unreadNotifications else 0,
+                        )
+                    },
+                    bottomBar = {
+                        SnaparBottomBar(
+                            selected = current,
+                            labels = labels,
+                            onSelect = { current = it },
+                            reducedMotion = state.reducedMotion,
+                        )
+                    },
+                ) { padding ->
+                    AnimatedContent(
+                        targetState = current,
+                        transitionSpec = {
+                            if (state.reducedMotion) {
+                                EnterTransition.None togetherWith ExitTransition.None
+                            } else {
+                                fadeIn(snaparEnterTween()) togetherWith fadeOut(snaparEnterTween())
+                            }
+                        },
+                        label = "tab-transition",
+                    ) { tab ->
+                        when (tab) {
+                            AppScreen.Discover -> DiscoverScreen(
+                                modifier = Modifier.padding(padding),
+                                state = state,
+                                onPlace = { selectedPlace = it },
+                                onRoute = { current = AppScreen.Routes },
+                                onSai = { current = AppScreen.Sai },
+                                onGeoSnap = { current = AppScreen.GeoSnap },
+                                onShorts = { selectedPost = it },
+                            )
+                            AppScreen.Routes -> RoutesScreen(
+                                modifier = Modifier.padding(padding),
+                                language = state.language,
+                                routes = state.generatedRoutes + SampleData.routes,
+                                onRoute = { selectedRoute = it },
+                                onBuild = { showRouteBuilder = true },
+                            )
+                            AppScreen.Passport -> PassportScreen(
+                                modifier = Modifier.padding(padding),
+                                state = state,
+                                onPlace = { selectedPlace = it },
+                            )
+                            AppScreen.Profile -> ProfileScreen(
+                                modifier = Modifier.padding(padding),
+                                state = state,
+                                onBusiness = { current = AppScreen.Business },
+                                onPlace = { selectedPlace = it },
+                                onRoute = { selectedRoute = it },
+                            )
+                            else -> Unit
+                        }
+                    }
+                }
+            }
         }
     }
 

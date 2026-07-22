@@ -2,6 +2,11 @@ package kz.snapar.app.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +28,11 @@ import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.DirectionsBus
+import androidx.compose.material.icons.outlined.Hotel
 import androidx.compose.material.icons.outlined.Navigation
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Card
@@ -36,6 +45,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +66,7 @@ import kz.snapar.app.model.TravelRoute
 import kz.snapar.app.ui.SnaparState
 import kz.snapar.app.ui.components.SectionTitle
 import kz.snapar.app.ui.components.formatTenge
+import kz.snapar.app.ui.components.pressScale
 import kz.snapar.app.ui.theme.SnaparGold
 import kz.snapar.app.ui.theme.SnaparMuted
 import kz.snapar.app.ui.theme.SnaparNavy
@@ -62,12 +77,19 @@ import kz.snapar.app.ui.theme.SnaparTurquoise
 fun RouteDetailScreen(route: TravelRoute, state: SnaparState, onBack: () -> Unit) {
     val language = state.language
     val context = LocalContext.current
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         item {
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(380, easing = FastOutSlowInEasing)) +
+                    slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it / 5 },
+            ) {
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -106,6 +128,7 @@ fun RouteDetailScreen(route: TravelRoute, state: SnaparState, onBack: () -> Unit
                     }
                 }
             }
+            } // AnimatedVisibility end
         }
         item {
             Row(
@@ -125,10 +148,30 @@ fun RouteDetailScreen(route: TravelRoute, state: SnaparState, onBack: () -> Unit
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Text(routeLocal(language, "Сапар параметрлері", "Параметры поездки", "Trip settings"), fontWeight = FontWeight.Bold)
-                        if (route.departureDate.isNotBlank()) Text("📅 ${route.departureDate}")
-                        if (route.transport.kk.isNotBlank()) Text("🚌 ${route.transport.value(language)}")
-                        if (route.lodging.kk.isNotBlank()) Text("🏨 ${route.lodging.value(language)}")
-                        if (route.pace.kk.isNotBlank()) Text("⚡ ${route.pace.value(language)}")
+                        if (route.departureDate.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.CalendarToday, null, tint = SnaparPrimary, modifier = Modifier.size(16.dp))
+                                Text(" ${route.departureDate}")
+                            }
+                        }
+                        if (route.transport.kk.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.DirectionsBus, null, tint = SnaparPrimary, modifier = Modifier.size(16.dp))
+                                Text(" ${route.transport.value(language)}")
+                            }
+                        }
+                        if (route.lodging.kk.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.Hotel, null, tint = SnaparPrimary, modifier = Modifier.size(16.dp))
+                                Text(" ${route.lodging.value(language)}")
+                            }
+                        }
+                        if (route.pace.kk.isNotBlank()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.Speed, null, tint = SnaparPrimary, modifier = Modifier.size(16.dp))
+                                Text(" ${route.pace.value(language)}")
+                            }
+                        }
                     }
                 }
             }
@@ -183,7 +226,7 @@ fun RouteDetailScreen(route: TravelRoute, state: SnaparState, onBack: () -> Unit
             ) {
                 Button(
                     onClick = { state.toggleRouteSaved(route) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).pressScale(),
                     colors = ButtonDefaults.buttonColors(containerColor = SnaparTurquoise),
                 ) {
                     Icon(if (route.id in state.savedRouteIds) Icons.Rounded.Bookmark else Icons.Outlined.BookmarkBorder, null)
@@ -195,7 +238,7 @@ fun RouteDetailScreen(route: TravelRoute, state: SnaparState, onBack: () -> Unit
                         val destination = if (route.id == 102) "43.350,79.080" else "42.991,78.325"
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:$destination?q=$destination")))
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).pressScale(),
                     colors = ButtonDefaults.buttonColors(containerColor = SnaparNavy),
                 ) {
                     Icon(Icons.Outlined.Navigation, null)
@@ -217,6 +260,7 @@ private fun HeaderButton(
         onClick = onClick,
         modifier = modifier
             .size(50.dp)
+            .pressScale()
             .background(Color.White.copy(.9f), CircleShape),
     ) {
         Icon(icon, null, tint = SnaparNavy)

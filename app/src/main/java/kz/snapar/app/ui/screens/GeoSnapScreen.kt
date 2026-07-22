@@ -10,6 +10,11 @@ import android.net.Uri
 import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +63,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +86,7 @@ import kz.snapar.app.model.CommunityPost
 import kz.snapar.app.model.LocalText
 import kz.snapar.app.ui.SnaparState
 import kz.snapar.app.ui.components.SectionTitle
+import kz.snapar.app.ui.components.pressScale
 import kz.snapar.app.ui.strings
 import kz.snapar.app.ui.theme.SnaparMuted
 import kz.snapar.app.ui.theme.SnaparNavy
@@ -104,6 +111,9 @@ fun GeoSnapScreen(
     var locationText by remember { mutableStateOf(geoLocal(state.language, "GPS өшірулі", "GPS выключен", "GPS off")) }
     var commentsPost by remember { mutableStateOf<CommunityPost?>(null) }
     var commentText by remember { mutableStateOf("") }
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
 
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -133,7 +143,7 @@ fun GeoSnapScreen(
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "Back") }
+                IconButton(onClick = onBack, modifier = Modifier.pressScale(0.92f)) { Icon(Icons.Outlined.ArrowBack, "Back") }
                 Text("GeoSnap", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             }
         },
@@ -146,6 +156,11 @@ fun GeoSnapScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             item {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(380, easing = FastOutSlowInEasing)) +
+                        slideInVertically(tween(380, easing = FastOutSlowInEasing)) { it / 5 },
+                ) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(20.dp),
@@ -160,6 +175,7 @@ fun GeoSnapScreen(
                                 Modifier
                                     .fillMaxWidth()
                                     .height(185.dp)
+                                    .pressScale(0.97f)
                                     .background(SnaparTurquoise.copy(.1f), RoundedCornerShape(16.dp))
                                     .clickable { mediaPicker.launch(arrayOf("image/*", "video/*")) },
                                 contentAlignment = Alignment.Center,
@@ -200,6 +216,7 @@ fun GeoSnapScreen(
                         }
                         Button(
                             onClick = { mediaPicker.launch(arrayOf("image/*", "video/*")) },
+                            modifier = Modifier.pressScale(),
                             colors = ButtonDefaults.buttonColors(containerColor = SnaparTurquoise),
                             shape = RoundedCornerShape(14.dp),
                         ) {
@@ -216,6 +233,7 @@ fun GeoSnapScreen(
                                     mediaPicker.launch(arrayOf("image/*"))
                                 },
                                 label = { Text("Фото") },
+                                modifier = Modifier.pressScale(),
                                 colors = snapChipColors(),
                             )
                             FilterChip(
@@ -226,6 +244,7 @@ fun GeoSnapScreen(
                                     mediaPicker.launch(arrayOf("image/*"))
                                 },
                                 label = { Text("360°") },
+                                modifier = Modifier.pressScale(),
                                 colors = snapChipColors(),
                             )
                             FilterChip(
@@ -236,6 +255,7 @@ fun GeoSnapScreen(
                                     mediaPicker.launch(arrayOf("video/*"))
                                 },
                                 label = { Text("Видео") },
+                                modifier = Modifier.pressScale(),
                                 colors = snapChipColors(),
                             )
                         }
@@ -296,7 +316,7 @@ fun GeoSnapScreen(
                                 caption = ""
                                 scope.launch { snackbar.showSnackbar(geoLocal(state.language, "GeoSnap жарияланды +75 XP", "GeoSnap опубликован +75 XP", "GeoSnap published +75 XP")) }
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().pressScale(enabled = selectedMedia != null),
                             enabled = selectedMedia != null,
                             shape = RoundedCornerShape(14.dp),
                         ) {
@@ -306,6 +326,7 @@ fun GeoSnapScreen(
                         }
                     }
                 }
+                } // AnimatedVisibility end
             }
 
             item {
@@ -315,6 +336,7 @@ fun GeoSnapScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .pressScale(0.98f)
                         .clickable { onOpenShorts(post) },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(16.dp),
@@ -349,7 +371,7 @@ fun GeoSnapScreen(
                         }
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Row(
-                                modifier = Modifier.clickable { state.togglePostLike(post.id) },
+                                modifier = Modifier.pressScale(0.9f).clickable { state.togglePostLike(post.id) },
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
@@ -360,7 +382,7 @@ fun GeoSnapScreen(
                                 Text(" ${post.likes + if (post.id in state.likedPostIds) 1 else 0}")
                             }
                             Row(
-                                modifier = Modifier.clickable { commentsPost = post },
+                                modifier = Modifier.pressScale(0.9f).clickable { commentsPost = post },
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(Icons.Outlined.ChatBubbleOutline, null)
@@ -397,7 +419,19 @@ fun GeoSnapScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     val comments = state.commentsFor(post)
                     if (comments.isEmpty()) Text(geoLocal(state.language, "Әзірге пікір жоқ", "Комментариев пока нет", "No comments yet"))
-                    comments.forEach { Text("• $it") }
+                    comments.forEach { comment ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Text(
+                                comment,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     OutlinedTextField(
                         value = commentText,
                         onValueChange = { commentText = it },
@@ -411,14 +445,18 @@ fun GeoSnapScreen(
                         state.addComment(post.id, commentText)
                         commentText = ""
                     },
+                    modifier = Modifier.pressScale(enabled = commentText.isNotBlank()),
                     enabled = commentText.isNotBlank(),
                 ) { Text(geoLocal(state.language, "Жіберу", "Отправить", "Send")) }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    commentsPost = null
-                    commentText = ""
-                }) { Text(geoLocal(state.language, "Жабу", "Закрыть", "Close")) }
+                TextButton(
+                    onClick = {
+                        commentsPost = null
+                        commentText = ""
+                    },
+                    modifier = Modifier.pressScale(),
+                ) { Text(geoLocal(state.language, "Жабу", "Закрыть", "Close")) }
             },
         )
     }

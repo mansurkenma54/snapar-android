@@ -27,6 +27,8 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +57,7 @@ import coil.compose.AsyncImage
 import kz.snapar.app.model.AppLanguage
 import kz.snapar.app.model.CommunityPost
 import kz.snapar.app.ui.SnaparState
+import kz.snapar.app.ui.components.pressScale
 import kz.snapar.app.ui.theme.SnaparTurquoise
 import androidx.compose.ui.viewinterop.AndroidView
 
@@ -162,7 +165,19 @@ fun ShortsScreen(
             title = { Text(shortsLocal(language, "Пікірлер", "Комментарии", "Comments")) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.commentsFor(post).forEach { Text("• $it") }
+                    state.commentsFor(post).forEach { comment ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        ) {
+                            Text(
+                                comment,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
                     OutlinedTextField(
                         value = commentText,
                         onValueChange = { commentText = it },
@@ -240,7 +255,9 @@ private fun ShortsAction(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.background(Color.Black.copy(alpha = 0.35f), CircleShape),
+            modifier = Modifier
+                .background(Color.Black.copy(alpha = 0.35f), CircleShape)
+                .pressScale(),
         ) {
             Icon(icon, label, tint = if (label == "SAI") SnaparTurquoise else Color.White)
         }

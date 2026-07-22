@@ -1,6 +1,7 @@
 package kz.snapar.app.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -29,11 +30,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,7 +75,7 @@ private data class IntroPage(
 fun OnboardingScreen(
     language: AppLanguage,
     onLanguageChange: (AppLanguage) -> Unit,
-    onFinish: () -> Unit,
+    onFinish: (String, String) -> Unit,
 ) {
     val pages = when (language) {
         AppLanguage.Kazakh -> listOf(
@@ -94,6 +98,9 @@ fun OnboardingScreen(
     val scope = rememberCoroutineScope()
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
+    var showRegister by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
 
     Box(
         modifier = Modifier
@@ -167,101 +174,202 @@ fun OnboardingScreen(
                     )
                 }
             }
-            HorizontalPager(
-                state = pager,
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-            ) { page ->
-                val item = pages[page]
-                val isActive = pager.currentPage == page
-                val iconScale by animateFloatAsState(
-                    targetValue = if (isActive) 1f else 0.88f,
-                    animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
-                    label = "icon-scale",
-                )
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Box(
-                        modifier = Modifier.size(144.dp),
-                        contentAlignment = Alignment.Center,
+            Crossfade(
+                targetState = showRegister,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                label = "onboarding-step",
+            ) { registering ->
+                if (registering) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
-                        // Outer glow
-                        Box(
-                            Modifier
-                                .size(144.dp)
-                                .background(
-                                    Brush.radialGradient(
-                                        listOf(SnaparTurquoise.copy(.14f), Color.Transparent),
+                        Box(modifier = Modifier.size(104.dp), contentAlignment = Alignment.Center) {
+                            Box(
+                                Modifier
+                                    .size(104.dp)
+                                    .background(
+                                        Brush.radialGradient(listOf(SnaparTurquoise.copy(.14f), Color.Transparent)),
+                                        CircleShape,
                                     ),
-                                    CircleShape,
-                                ),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(76.dp)
+                                    .background(
+                                        Brush.linearGradient(listOf(SnaparTurquoise.copy(.22f), SnaparPrimary.copy(.12f))),
+                                        CircleShape,
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Outlined.Person, null, tint = SnaparPrimary, modifier = Modifier.size(38.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(20.dp))
+                        Text(
+                            when (language) {
+                                AppLanguage.Kazakh -> "Танысайық"
+                                AppLanguage.Russian -> "Давайте познакомимся"
+                                AppLanguage.English -> "Let's get acquainted"
+                            },
+                            style = MaterialTheme.typography.titleLarge,
+                            color = SnaparNavy,
+                            fontWeight = FontWeight.ExtraBold,
+                            textAlign = TextAlign.Center,
                         )
-                        // Inner circle
-                        Box(
-                            modifier = Modifier
-                                .scale(iconScale)
-                                .size(104.dp)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(SnaparTurquoise.copy(.22f), SnaparPrimary.copy(.12f)),
-                                    ),
-                                    CircleShape,
-                                ),
-                            contentAlignment = Alignment.Center,
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            when (language) {
+                                AppLanguage.Kazakh -> "Атыңызды енгізіңіз, ол профиліңізде көрсетіледі"
+                                AppLanguage.Russian -> "Введите имя — оно появится в вашем профиле"
+                                AppLanguage.English -> "Enter your name — it'll show on your profile"
+                            },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFF3C5450),
+                            textAlign = TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = {
+                                Text(
+                                    when (language) {
+                                        AppLanguage.Kazakh -> "Атыңыз"
+                                        AppLanguage.Russian -> "Имя"
+                                        AppLanguage.English -> "Name"
+                                    },
+                                )
+                            },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = SnaparTurquoise),
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = {
+                                Text(
+                                    when (language) {
+                                        AppLanguage.Kazakh -> "Email (міндетті емес)"
+                                        AppLanguage.Russian -> "Email (необязательно)"
+                                        AppLanguage.English -> "Email (optional)"
+                                    },
+                                )
+                            },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = SnaparTurquoise),
+                        )
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        HorizontalPager(
+                            state = pager,
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) { page ->
+                            val item = pages[page]
+                            val isActive = pager.currentPage == page
+                            val iconScale by animateFloatAsState(
+                                targetValue = if (isActive) 1f else 0.88f,
+                                animationSpec = spring(dampingRatio = 0.6f, stiffness = 300f),
+                                label = "icon-scale",
+                            )
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(144.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    // Outer glow
+                                    Box(
+                                        Modifier
+                                            .size(144.dp)
+                                            .background(
+                                                Brush.radialGradient(
+                                                    listOf(SnaparTurquoise.copy(.14f), Color.Transparent),
+                                                ),
+                                                CircleShape,
+                                            ),
+                                    )
+                                    // Inner circle
+                                    Box(
+                                        modifier = Modifier
+                                            .scale(iconScale)
+                                            .size(104.dp)
+                                            .background(
+                                                Brush.linearGradient(
+                                                    listOf(SnaparTurquoise.copy(.22f), SnaparPrimary.copy(.12f)),
+                                                ),
+                                                CircleShape,
+                                            ),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(item.icon, null, tint = SnaparPrimary, modifier = Modifier.size(52.dp))
+                                    }
+                                }
+                                Spacer(Modifier.height(32.dp))
+                                Text(
+                                    item.title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = SnaparNavy,
+                                    textAlign = TextAlign.Center,
+                                    fontWeight = FontWeight.ExtraBold,
+                                )
+                                Spacer(Modifier.height(14.dp))
+                                Text(
+                                    item.text,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color(0xFF3C5450),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 24.sp,
+                                )
+                            }
+                        }
+
+                        // Dot indicator — анимациялы
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(item.icon, null, tint = SnaparPrimary, modifier = Modifier.size(52.dp))
+                            pages.indices.forEach { index ->
+                                val active = pager.currentPage == index
+                                val dotWidth by animateDpAsState(
+                                    targetValue = if (active) 24.dp else 8.dp,
+                                    animationSpec = spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium),
+                                    label = "dot-w",
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(dotWidth, 8.dp)
+                                        .background(
+                                            if (active) SnaparTurquoise else Color(0xFFB0C8C5),
+                                            CircleShape,
+                                        ),
+                                )
+                            }
                         }
                     }
-                    Spacer(Modifier.height(32.dp))
-                    Text(
-                        item.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = SnaparNavy,
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.ExtraBold,
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        item.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color(0xFF3C5450),
-                        textAlign = TextAlign.Center,
-                        lineHeight = 24.sp,
-                    )
-                }
-            }
-
-            // Dot indicator — анимациялы
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                pages.indices.forEach { index ->
-                    val active = pager.currentPage == index
-                    val dotWidth by animateDpAsState(
-                        targetValue = if (active) 24.dp else 8.dp,
-                        animationSpec = spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium),
-                        label = "dot-w",
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(dotWidth, 8.dp)
-                            .background(
-                                if (active) SnaparTurquoise else Color(0xFFB0C8C5),
-                                CircleShape,
-                            ),
-                    )
                 }
             }
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = {
-                    if (pager.currentPage == pages.lastIndex) onFinish()
-                    else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) }
+                    when {
+                        showRegister -> onFinish(name, email)
+                        pager.currentPage == pages.lastIndex -> showRegister = true
+                        else -> scope.launch { pager.animateScrollToPage(pager.currentPage + 1) }
+                    }
                 },
+                enabled = !showRegister || name.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -271,9 +379,9 @@ fun OnboardingScreen(
                 ),
             ) {
                 val label = when (language) {
-                    AppLanguage.Kazakh -> if (pager.currentPage == pages.lastIndex) "Бастау 🚀" else "Келесі →"
-                    AppLanguage.Russian -> if (pager.currentPage == pages.lastIndex) "Начать 🚀" else "Далее →"
-                    AppLanguage.English -> if (pager.currentPage == pages.lastIndex) "Start 🚀" else "Next →"
+                    AppLanguage.Kazakh -> if (showRegister) "Аяқтау ✓" else if (pager.currentPage == pages.lastIndex) "Бастау 🚀" else "Келесі →"
+                    AppLanguage.Russian -> if (showRegister) "Готово ✓" else if (pager.currentPage == pages.lastIndex) "Начать 🚀" else "Далее →"
+                    AppLanguage.English -> if (showRegister) "Finish ✓" else if (pager.currentPage == pages.lastIndex) "Start 🚀" else "Next →"
                 }
                 Text(label, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }

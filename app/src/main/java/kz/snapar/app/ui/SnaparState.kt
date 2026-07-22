@@ -63,6 +63,10 @@ class SnaparState(
         private set
     var routeCount by mutableIntStateOf(0)
         private set
+    var userName by mutableStateOf("")
+        private set
+    var userEmail by mutableStateOf("")
+        private set
 
     val sessionPosts = mutableStateListOf<CommunityPost>()
     val generatedRoutes = mutableStateListOf<TravelRoute>()
@@ -103,6 +107,8 @@ class SnaparState(
                 reducedMotion = stored.reducedMotion
                 publishedCount = stored.publishedCount
                 routeCount = stored.routeCount
+                userName = stored.userName
+                userEmail = stored.userEmail
                 likedPostIds = stored.likedPostIds
                 savedRouteIds = stored.savedRouteIds.mapNotNull(String::toIntOrNull).toSet()
                 readNotificationIds = stored.readNotificationIds
@@ -122,6 +128,16 @@ class SnaparState(
     fun finishOnboarding() {
         onboardingDone = true
         scope.launch { preferences.setOnboardingDone(true) }
+    }
+
+    fun completeRegistration(name: String, email: String) {
+        userName = name.trim()
+        userEmail = email.trim()
+        scope.launch {
+            preferences.setUserName(userName)
+            preferences.setUserEmail(userEmail)
+        }
+        finishOnboarding()
     }
 
     fun updateLanguage(value: AppLanguage) {

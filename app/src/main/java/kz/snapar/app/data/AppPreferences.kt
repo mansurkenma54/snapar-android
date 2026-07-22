@@ -36,6 +36,8 @@ data class StoredPreferences(
     val savedRouteIds: Set<String> = emptySet(),
     val venues: Set<String> = emptySet(),
     val readNotificationIds: Set<String> = emptySet(),
+    val userName: String = "",
+    val userEmail: String = "",
 )
 
 class AppPreferences(private val context: Context) {
@@ -60,6 +62,8 @@ class AppPreferences(private val context: Context) {
         val savedRouteIds = stringSetPreferencesKey("saved_route_ids")
         val venues = stringSetPreferencesKey("venues")
         val readNotificationIds = stringSetPreferencesKey("read_notification_ids")
+        val userName = stringPreferencesKey("user_name")
+        val userEmail = stringPreferencesKey("user_email")
     }
 
     val values: Flow<StoredPreferences> = context.snaparDataStore.data
@@ -89,6 +93,8 @@ class AppPreferences(private val context: Context) {
                 savedRouteIds = prefs[Keys.savedRouteIds] ?: emptySet(),
                 venues = prefs[Keys.venues] ?: emptySet(),
                 readNotificationIds = prefs[Keys.readNotificationIds] ?: emptySet(),
+                userName = prefs[Keys.userName] ?: "",
+                userEmail = prefs[Keys.userEmail] ?: "",
             )
         }
 
@@ -112,6 +118,8 @@ class AppPreferences(private val context: Context) {
     suspend fun setSavedRouteIds(value: Set<String>) = set(Keys.savedRouteIds, value)
     suspend fun setVenues(value: Set<String>) = set(Keys.venues, value)
     suspend fun setReadNotificationIds(value: Set<String>) = set(Keys.readNotificationIds, value)
+    suspend fun setUserName(value: String) = set(Keys.userName, value)
+    suspend fun setUserEmail(value: String) = set(Keys.userEmail, value)
 
     private suspend fun <T> set(key: Preferences.Key<T>, value: T) {
         context.snaparDataStore.edit { it[key] = value }

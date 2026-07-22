@@ -24,9 +24,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.unit.IntOffset
 
 // Ең жұмсақ spring анимация
 val SnaparSpring = spring<Float>(dampingRatio = 0.65f, stiffness = 380f)
+
+// Экран ауысу (slide) анимациясы үшін IntOffset нұсқасы
+val SnaparSlideSpring = spring<IntOffset>(dampingRatio = 0.65f, stiffness = 380f)
 
 // Кіру анимациясы: slide + fade
 fun snaparEnterTween(delayMs: Int = 0) = tween<Float>(
