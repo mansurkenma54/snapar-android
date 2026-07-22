@@ -28,7 +28,7 @@
 - GeoSnap: community feed және телефоннан фото таңдау
 - Passport: XP, Қазақстан картасы, статистика және жетістіктер
 - Profile: статистика, тіл/хабарлама баптаулары, бизнес режим
-- SAI: интерактивті демо чат және жылдам сұраулар
+- SAI: Gemini арқылы жұмыс істейтін нақты AI сұхбаттасу (Cloudflare Worker backend) + офлайн fallback
 - Live Weather: Open-Meteo арқылы нақты уақыттағы ауа райы және 7 күндік болжам
 
 ## Іске қосу
@@ -59,14 +59,25 @@ C:\Users\Lenovo\AppData\Local\Android\Sdk\platform-tools\adb.exe install -r arti
 
 Толық өнімдік жоспар: [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)
 
-## Cloud SAI қосу
+## Cloud SAI (Gemini)
 
-Қосымша API кілтін APK ішіне сақтамайды. Нақты LLM қолдану үшін кілт серверде тұруы керек,
-ал Android тек қауіпсіз HTTPS endpoint-ке сұраныс жібереді:
+Қосымша API кілтін APK ішіне сақтамайды. Нақты LLM кілті `backend/sai-worker` ішіндегі
+Cloudflare Worker-де (Cloudflare secret ретінде) тұрады, ал Android тек соның қауіпсіз
+HTTPS endpoint-іне сұраныс жібереді:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug -PSNAPAR_SAI_BACKEND_URL=https://example.com/api/sai
+.\gradlew.bat :app:assembleDebug -PSNAPAR_SAI_BACKEND_URL=https://snapar-sai.snapar.workers.dev
 ```
 
-Endpoint `POST {"message":"...","language":"kk","app":"Snapar"}` қабылдап,
-`{"reply":"..."}` қайтарады. URL берілмесе, SAI толық офлайн жоспарлаушымен жұмыс істейді.
+Endpoint `POST {"message":"...","language":"kk","app":"Snapar"}` қабылдап, Gemini-ден
+алынған `{"reply":"..."}` қайтарады. URL берілмесе немесе Worker қолжетімсіз болса, SAI
+автоматты түрде толық офлайн жоспарлаушыға көшеді (`SaiRepository.kt`).
+
+Worker-ды өз алдыңызша қайта деплой ету:
+
+```powershell
+cd backend\sai-worker
+npx wrangler login
+npx wrangler secret put GEMINI_API_KEY
+npx wrangler deploy
+```
